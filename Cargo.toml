@@ -1,0 +1,7 @@
+[package]
+name = "templatizer"
+version = "0.1.0"
+authors = ["mateus"]
+
+[dependencies]
+xml-rs = "*"
