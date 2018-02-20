@@ -15,19 +15,21 @@ use std::collections::LinkedList;
 
 const TMPL_FMT_XHTML: u32 = 1;
 
-enum Node<'a> {
+enum Node {
 	Start {
+		// copy name and attributes from parsed values
 		name: OwnedName,
 		attributes: Vec<OwnedAttribute>,
+
 		jmp: Option<usize>, /* Offset to end node. */
 	},
 	End {
-		el: &'a String,
+		el: String,
 		conditional_jmp: bool,
 		jmp: Option<usize>, /* Offset to start node */
 	},
 	CharacterData {
-		data: &'a String,
+		data: String,
 	}
 }
 
@@ -55,7 +57,7 @@ struct StartNodeIndex(u32);
 
 pub struct Context<'a> {
 	/* This list contains template nodes. */
-	nodes: Vec<Node<'a>>,
+	nodes: Vec<Node>,
 	/* This list is freed as it is consumed because it does not loop. */
 	/* It contains data from user input */
 	input: LinkedList<Input>,
@@ -201,31 +203,17 @@ fn read_input_jump_instruction(data: &mut Context) -> ControlFlow {
 }
 
 /* print node */
-fn interpret_template_node(data: &mut Context, i: usize) -> ControlFlow {
+fn interpret_template_node(data: &mut Context, i: usize) -> Option<usize> {
 	println!("node");
 	match data.nodes[i] {
 		Node::Start {ref name, ref attributes, jmp} => {
 			print_start_node(name, attributes, &mut data.input);
-			match jmp {
-				Some(idx) => {
-					ControlFlow::JumpInstruction
-				},
-				None => {
-					ControlFlow::NextInstruction
-				}
-			}
+			jmp
 		},
-		Node::End {el, conditional_jmp, jmp} => {
-			match jmp {
-				Some(idx) => {
-					ControlFlow::JumpInstruction
-				},
-				None => {
-					ControlFlow::NextInstruction
-				}
-			}
+		Node::End {ref el, conditional_jmp, jmp} => {
+			jmp
 		},
-		Node::CharacterData {..} => ControlFlow::NextInstruction,
+		Node::CharacterData {..} => None,
 	}
 }
 
@@ -235,8 +223,10 @@ pub fn print_xml_file(data: &mut Context) {
 	let mut i = 0;
 	while i < len {
 		match interpret_template_node(data, i) {
-			JumpInstruction => (),
-			NextInstruction => {
+			Some(idx) => {
+				i = idx;
+			},
+			None => {
 				i = i + 1;
 			}
 		}
