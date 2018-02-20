@@ -4,7 +4,7 @@ extern crate xml;
 
 use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
+//use std::path::Path;
 
 use xml::reader::{EventReader, XmlEvent};
 use xml::name::{OwnedName};
@@ -13,30 +13,31 @@ use xml::attribute::{OwnedAttribute};
 use std::env;
 use std::collections::LinkedList;
 
-const TMPL_FMT_XHTML: u32 = 1;
-
 enum Node {
 	Start {
 		// copy name and attributes from parsed values
 		name: OwnedName,
 		attributes: Vec<OwnedAttribute>,
 
-		jmp: Option<usize>, /* Offset to end node. */
+		jmp: Option<usize>, // Offset to end node.
 	},
 	End {
-		el: String,
+		// copy name from parsed values
+		name: OwnedName,
+
 		conditional_jmp: bool,
-		jmp: Option<usize>, /* Offset to start node */
+		jmp: Option<usize>, // Offset to start node
 	},
 	CharacterData {
-		data: String,
+		// copy data from parsed values
+		text: String,
 	}
 }
 
-enum Jump {
-	JmpBackward,
-	JmpFoward,
-}
+/*enum Jump {
+	JmpBackwards,
+	JmpForward,
+}*/
 
 pub enum ControlFlow {
 	JumpInstruction,
@@ -53,8 +54,6 @@ enum Input {
 	}
 }
 
-struct StartNodeIndex(u32);
-
 pub struct Context<'a> {
 	/* This list contains template nodes. */
 	nodes: Vec<Node>,
@@ -62,8 +61,8 @@ pub struct Context<'a> {
 	/* It contains data from user input */
 	input: LinkedList<Input>,
 	/* These stacks contain control flow information from template. */
-	tags: Vec<String>,
-	labels: Vec<StartNodeIndex>,
+	//tags: Vec<String>,
+	//labels: Vec<StartNodeIndex>,
 	tmpl: &'a String
 }
 
@@ -119,10 +118,10 @@ fn print_end_node(name: &OwnedName) {
 	print!("</{}>", name.local_name);
 }
 
-fn print_character_data_node(data: &mut Context, text: String) {
+fn print_character_data_node(text: &String, input: &mut LinkedList<Input>) {
 	for c in text.chars() {
 		if c == '@' {
-			match data.input.pop_back() {
+			match input.pop_back() {
 				Some(x) => {
 					/* Input type checking. */
 					match x {
@@ -144,17 +143,11 @@ fn print_character_data_node(data: &mut Context, text: String) {
 	}
 }
 
-fn indent(size: usize) -> String {
-    const INDENT: &'static str = "    ";
-    (0..size).map(|_| INDENT)
-             .fold(String::with_capacity(size*INDENT.len()), |r, s| r + s)
-}
+/*fn parse_template_tag(_data: &mut Context, _attributes: &Vec<OwnedAttribute>) {
+	//This tag has not been obsoleted.
+}*/
 
-fn parse_template_tag(_data: &mut Context, _attributes: &Vec<OwnedAttribute>) {
-	/* This tag has not been obsoleted. */
-}
-
-fn parse_include_tag(data: &mut Context, attributes: &Vec<OwnedAttribute>) {
+/*fn parse_include_tag(data: &mut Context, attributes: &Vec<OwnedAttribute>) {
 	for attr in attributes {
 		match &*attr.name.local_name {
 			"file" => {
@@ -163,9 +156,9 @@ fn parse_include_tag(data: &mut Context, attributes: &Vec<OwnedAttribute>) {
 			_ => (),
 		}
 	}
-}
+}*/
 
-fn tag_pool_add(data: &mut Context, el: &String) {
+/*fn tag_pool_add(data: &mut Context, el: &String) {
 }
 
 fn tag_pool_lookup(data: &mut Context, el: &String) -> usize {
@@ -176,9 +169,9 @@ fn tag_pool_lookup(data: &mut Context, el: &String) -> usize {
 	}
 	tag_pool_add(data, el);
 	return data.tags.len();
-}
+}*/
 
-fn start(data: &mut Context, name: &OwnedName, attributes: &Vec<OwnedAttribute>) {
+/*fn start(data: &mut Context, name: &OwnedName, attributes: &Vec<OwnedAttribute>) {
 	if name.local_name == "templatizer" {
 		parse_template_tag(data, attributes);
 	}
@@ -186,9 +179,9 @@ fn start(data: &mut Context, name: &OwnedName, attributes: &Vec<OwnedAttribute>)
 		parse_include_tag(data, attributes);
 	}
 	tag_pool_lookup(data, &name.local_name);
-}
+}*/
 
-fn read_input_jump_instruction(data: &mut Context) -> ControlFlow {
+/*fn read_input_jump_instruction(data: &mut Context) -> ControlFlow {
 	match data.input.pop_back() {
 		Some(Input::ControlFlow {control}) => {
 			control
@@ -200,7 +193,7 @@ fn read_input_jump_instruction(data: &mut Context) -> ControlFlow {
 			panic!("missing input for tag that requires control flow input");
 		}
 	}
-}
+}*/
 
 /* print node */
 fn interpret_template_node(data: &mut Context, i: usize) -> Option<usize> {
@@ -210,10 +203,18 @@ fn interpret_template_node(data: &mut Context, i: usize) -> Option<usize> {
 			print_start_node(name, attributes, &mut data.input);
 			jmp
 		},
-		Node::End {ref el, conditional_jmp, jmp} => {
-			jmp
+		Node::End {ref name, conditional_jmp, jmp} => {
+			print_end_node(name);
+			if conditional_jmp {
+				jmp
+			} else {
+				None
+			}
 		},
-		Node::CharacterData {..} => None,
+		Node::CharacterData {ref text} => {
+			print_character_data_node(text, &mut data.input);
+			None
+		},
 	}
 }
 
@@ -248,15 +249,9 @@ pub fn parse_xml_file<'a>(data: &mut Context) {
     let file = BufReader::new(file);
 
     let parser = EventReader::new(file);
-    let mut depth = 0;
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, attributes, .. }) => {
-                //println!("{}+{}", indent(depth), name.local_name);
-                //print!("{}", indent(depth));
-                depth += 1;
-                //print_start_node(data, &name, &attributes);
-                //println!("");
                 data.nodes.push(Node::Start {
 					name: name.clone(),
 					attributes: attributes.clone(),
@@ -264,15 +259,16 @@ pub fn parse_xml_file<'a>(data: &mut Context) {
 				});
             }
             Ok(XmlEvent::EndElement { name }) => {
-                depth -= 1;
-                //print!("{}", indent(depth));
-                //println!("{}-{}", indent(depth), name.local_name);
-                //print_end_node(&name);
-                //println!("");
+				data.nodes.push(Node::End {
+					name: name.clone(),
+					conditional_jmp: false,
+					jmp: None
+				});
             }
             Ok (XmlEvent::Characters(text)) => {
-				//print_character_data_node(data, text);
-				//println!("");
+				data.nodes.push(Node::CharacterData {
+					text: text.clone()
+				});
 			}
             Err(e) => {
                 println!("Error: {}", e);
@@ -287,8 +283,8 @@ pub fn new<'a>(tmpl: &'a String) -> Context<'a> {
 	Context {
 		nodes: Vec::new(),
 		input: LinkedList::new(),
-		tags: Vec::new(),
-		labels: Vec::new(),
+		//tags: Vec::new(),
+		//labels: Vec::new(),
 		tmpl: tmpl
 	}
 }
@@ -296,7 +292,7 @@ pub fn new<'a>(tmpl: &'a String) -> Context<'a> {
 pub fn default_tmpl() -> String {
 	match env::var("PATH_TRANSLATED") {
 		Ok(x) => x,
-		Err(e) => panic!("PATH_TRANSLATED env not found."),
+		Err(_e) => panic!("PATH_TRANSLATED env not found."),
 	}
 }
 
