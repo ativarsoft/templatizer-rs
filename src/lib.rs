@@ -1,3 +1,5 @@
+// Copyright (C) 2018 Mateus de Lima Oliveira
+
 extern crate xml;
 
 use std::fs::File;
