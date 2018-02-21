@@ -308,6 +308,7 @@ mod tests {
 		//let tmpl = default_tmpl();
 		let tmpl = "index.tmpl".to_string();
 		let mut data = new(&tmpl);
+		add_filler_text(&mut data, "value");
 		add_filler_text(&mut data, "Hello world.");
 		parse_xml_file(&mut data);
 		print_xml_file(&mut data);
