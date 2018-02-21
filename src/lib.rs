@@ -197,7 +197,6 @@ fn tag_pool_lookup(data: &mut Context, el: &String) -> usize {
 
 /* print node */
 fn interpret_template_node(data: &mut Context, i: usize) -> Option<usize> {
-	println!("node");
 	match data.nodes[i] {
 		Node::Start {ref name, ref attributes, jmp} => {
 			print_start_node(name, attributes, &mut data.input);
@@ -221,6 +220,9 @@ fn interpret_template_node(data: &mut Context, i: usize) -> Option<usize> {
 /* print list */
 pub fn print_xml_file(data: &mut Context) {
 	let len = data.nodes.len();
+	if len == 0 {
+		panic!("no nodes to print");
+	}
 	let mut i = 0;
 	while i < len {
 		match interpret_template_node(data, i) {
@@ -303,7 +305,8 @@ mod tests {
 	#[test]
 	fn index() {
 		/*println!("Hello, world!");*/
-		let tmpl = default_tmpl();
+		//let tmpl = default_tmpl();
+		let tmpl = "index.tmpl".to_string();
 		let mut data = new(&tmpl);
 		add_filler_text(&mut data, "Hello world.");
 		parse_xml_file(&mut data);
