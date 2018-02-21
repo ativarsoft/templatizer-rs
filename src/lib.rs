@@ -90,7 +90,7 @@ fn print_start_node(name: &OwnedName, attributes: &Vec<OwnedAttribute>, input: &
 					/* Input type checking. */
 					match x {
 						Input::FillerText {text} => {
-							print!(" {}={}", a.name, text);
+							print!(" {}=\"{}\"", a.name, text);
 						},
 						Input::ControlFlow {..} => {
 							panic!("Expecting text placeholer, found control flow.");
@@ -102,7 +102,7 @@ fn print_start_node(name: &OwnedName, attributes: &Vec<OwnedAttribute>, input: &
 				}
 			};
 		} else {
-			print!(" {}", a);
+			print!(" {}=\"{}\"", a.name, a.value);
 		}
 	}
 	print!(">");
